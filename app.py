@@ -54,14 +54,13 @@ def process():
     # Feed the AI model
     base_cv2 = cv2.imread(base_image_path, cv2.IMREAD_UNCHANGED)
     piece_cv2 = cv2.imread(processed_piece_path, cv2.IMREAD_UNCHANGED)
-    solved_piece_coordinates = sift.find_match(base_cv2, piece_cv2, False)
-    print("Solved piece coordinates: \n" + str(solved_piece_coordinates))
+    solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time)
+    print("Solved piece coordinates: \n" + str(solved_piece_base64))
 
     # Return the location of the piece within the base
     out = {
         "request_id": request_time,
-        "solved_x": solved_piece_coordinates[2][0][0],
-        "solved_y": solved_piece_coordinates[2][0][1],
+        "solved_data": solved_piece_base64,
     }
 
     # Return the response to the caller
