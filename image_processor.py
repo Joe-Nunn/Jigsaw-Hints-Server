@@ -103,7 +103,7 @@ def main():
 
     else:
         # is a file.
-        if input_path.endswith(".png"):
+        if input_path.endswith(".png") or input_path.endswith(".jpg"):
             process(input_path)
 
 
@@ -163,7 +163,7 @@ def process(file_path):
     shutil.copyfile(file_path, temp_path)
 
     # Apply the filters in order.
-    fast_denoise()
+    # fast_denoise()
     remove_background()
     # draw_debug_rect(calc_bounding_rect())
     crop_image(calc_bounding_rect())
@@ -181,7 +181,11 @@ def process(file_path):
 
     if os.path.isfile(input_path):
         # If just a file, save in the same folder as the input.
-        idx = input_path.index(".png")
+        if ".png" in input_path:
+            idx = input_path.index(".png")
+        else:
+            idx = input_path.index(".jpg")
+        
         output_path = input_path[:idx] + append + input_path[idx:]
     else:
         # Same as above, but respects path inputs.
