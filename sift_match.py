@@ -20,7 +20,7 @@ import pandas as pd
 import os
 import time
 
-RATIO_FOR_MATCH = 0.7
+RATIO_FOR_MATCH = 0.75
 MATCH_CUTOFF = 10
 DATASET_PATH = "JigsawDataset/"
 CHECKING_CORRECT_MARGIN = 0.03  # 3% of image size
@@ -54,21 +54,9 @@ def find_match(base, piece, save_image, request_time):
     kp_base, desc_base = sift.detectAndCompute(base, None)
     kp_piece, desc_piece = sift.detectAndCompute(piece, None)
 
-    # "Fast Library for Approximate Nearest Neighbors"
-    # see https://docs.opencv.org/3.4/dc/de2/classcv_1_1FlannBasedMatcher.html
-    flann = cv2.FlannBasedMatcher(
-        {
-            "algorithm": 1,
-            "trees": 5
-        },
-        {
-            "checks": 50
-        }
-    )
-
-    # Find matches using FLANN
-    # see https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
-    matches = flann.knnMatch(desc_piece, desc_base, 2)
+    # Use bruce force matcher to ensure best match
+    bf = cv2.BFMatcher.create(cv2.NORM_L2)
+    matches = bf.knnMatch(desc_piece, desc_base, k=2)
 
     # Loop through all matches and only keep the ones that we are sufficiently confidient are correct.
     # This is achieve through a "ratio test" by comparing the distance between the two matched features.
@@ -107,11 +95,17 @@ def find_match(base, piece, save_image, request_time):
     transformed_points = cv2.perspectiveTransform(corners, matrix)
 
     if save_image:
+        # Create an alpha channel in the base if it doesn't exist
+        if piece_c != 4:
+            piece = np.dstack((piece, np.ones((piece_h, piece_w), "uint8") * 255))
+        if base_c != 4:
+            base = np.dstack((base, np.ones((base_h, base_w), "uint8") * 255))
+        
         # Increase piece image size to match base. Pad with black pixels.
         piece_transformed = cv2.copyMakeBorder(piece,
-                                               0, int(base_h - piece_h), 0, int(base_w - piece_w),
-                                               cv2.BORDER_CONSTANT, value=[0, 0, 0]
-                                               )
+            0, int(base_h - piece_h), 0, int(base_w - piece_w),
+            cv2.BORDER_CONSTANT, value=[0,0,0,0]
+        )
 
         # Apply matrix transformation to move piece to correct position on base.
         # Handles position, rotation, scale, and perspective skews.
@@ -133,10 +127,6 @@ def find_match(base, piece, save_image, request_time):
              alpha]
         ).transpose((1, 2, 0))
 
-        # Create an alpha channel in the base if it doesn't exist
-        if base_c != 4:
-            base = np.dstack((base, np.ones((base_h, base_w), "uint8") * 255))
-
         # Cut out a transparent hole for the jigsaw piece from the base image using its alpha.
         base = cv2.multiply(1 - alpha, base)
 
@@ -144,16 +134,19 @@ def find_match(base, piece, save_image, request_time):
         final = cv2.add(base, piece_transformed)
         solved_png_path = "output/" + str(request_time) + "_solved.jpg"
         cv2.imwrite(solved_png_path, final)
+
         # Convert to webp
         solved_webp = Image.open(solved_png_path)
         solved_webp = solved_webp.convert("RGB")
         solved_webp_path = "output/" + str(request_time) + "_solved.webp"
         solved_webp.save(solved_webp_path, "webp")
+
         # Delete the PNG file
         try:
             os.remove(solved_png_path)
         except:
             pass
+
         # Encode to base64 and return
         return encode_base64(solved_webp_path)
 
