@@ -43,6 +43,9 @@ def process():
     # Retrieve the hint accuracy
     hint_accuracy = str(json["hint_accuracy"])
     print("Hint accuracy: " + hint_accuracy)
+    # Retrieve the number of pieces
+    no_pieces = str(json["number_of_pieces"])
+    print("Number of pieces: " + no_pieces)
 
     # Save the received base and piece images
     raw_piece_path = OUTPUT_DIR + str(request_time) + ".png"
