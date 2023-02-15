@@ -37,6 +37,12 @@ def process():
     # Decode the base64 data
     piece_data = base64.decodebytes(str.encode(json["piece_data"]))
     base_data = base64.decodebytes(str.encode(json["base_data"]))
+    # Retrieve the algorithm type
+    algorithm_type = str(json["algorithm_type"])
+    print("Algorithm type: " + algorithm_type)
+    # Retrieve the hint accuracy
+    hint_accuracy = str(json["hint_accuracy"])
+    print("Hint accuracy: " + hint_accuracy)
 
     # Save the received base and piece images
     raw_piece_path = OUTPUT_DIR + str(request_time) + ".png"
@@ -54,8 +60,18 @@ def process():
     # Feed the AI model/SIFT
     base_cv2 = cv2.imread(base_image_path, cv2.IMREAD_UNCHANGED)
     piece_cv2 = cv2.imread(processed_piece_path, cv2.IMREAD_UNCHANGED)
-    solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time)
-    print("Solved piece coordinates: \n" + str(solved_piece_base64))
+
+    if algorithm_type == "SIFT":
+        solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time)
+    elif algorithm_type == "CNN":
+        # solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time) // TODO
+        solved_piece_base64 = None
+    else:
+        return flask.jsonify({"error": "Unsupported algorithm type"}), 415
+
+    # If the AI model failed to find the piece, return an error
+    if solved_piece_base64 is None:
+        return flask.jsonify({"error": "Piece not found"}), 400
 
     # Return the location of the piece within the base
     out = {
