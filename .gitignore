@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Flash server demo (PyCharm IDE)
+.idea/
+output/
