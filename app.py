@@ -5,7 +5,7 @@ import cv2
 import os
 
 import image_processor as ip
-import sift_match as sift
+from match.sift_match import SiftMatch
 
 from json_encoder import NumpyArrayEncoder
 
@@ -16,6 +16,8 @@ app = flask.Flask(__name__)
 
 # Set the JSON encoder to the custom one
 app.json_encoder = NumpyArrayEncoder
+
+sift = SiftMatch()
 
 
 @app.route("/process", methods=["POST"])
