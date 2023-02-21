@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 import base64
 
 
@@ -22,3 +22,7 @@ class Match(ABC):
         out_bytes_base64 = out_bytes_base64.decode("ascii")
 
         return out_bytes_base64
+
+    @abstractmethod
+    def find_match(self, base, piece, save_image, request_time):
+        pass
