@@ -24,5 +24,5 @@ class Match(ABC):
         return out_bytes_base64
 
     @abstractmethod
-    def find_match(self, base, piece, save_image, request_time):
+    def find_match(self, base, piece, save_image, request_time, hint_accuracy, no_pieces):
         pass

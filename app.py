@@ -3,6 +3,7 @@ import time
 import base64
 import cv2
 import os
+import json as python_json
 
 import image_processor as ip
 from match.sift_match import SiftMatch
@@ -32,6 +33,11 @@ def process():
 
     # Get the request data
     json = flask.request.get_json()
+    
+    # Write latest request to file (debug)
+    latest = open("latest-request.txt", "wt")
+    latest.write(python_json.dumps(json))
+    latest.close()
 
     # Get the request time
     request_time = time.time_ns()
@@ -39,15 +45,18 @@ def process():
     # Decode the base64 data
     piece_data = base64.decodebytes(str.encode(json["piece_data"]))
     base_data = base64.decodebytes(str.encode(json["base_data"]))
+
     # Retrieve the algorithm type
     algorithm_type = str(json["algorithm_type"])
     print("Algorithm type: " + algorithm_type)
-    # Retrieve the hint accuracy
-    hint_accuracy = str(json["hint_accuracy"])
-    print("Hint accuracy: " + hint_accuracy)
+
+    # Retrieve the hint accuracy (1 to 100, normalise to 0 to 1)
+    hint_accuracy = (int(json["hint_accuracy"]) / 100.0)
+    print("Hint accuracy: " + str(hint_accuracy))
+
     # Retrieve the number of pieces
-    no_pieces = str(json["number_of_pieces"])
-    print("Number of pieces: " + no_pieces)
+    no_pieces = int(json["number_of_pieces"])
+    print("Number of pieces: " + str(no_pieces))
 
     # Save the received base and piece images
     raw_piece_path = OUTPUT_DIR + str(request_time) + ".png"
@@ -67,9 +76,9 @@ def process():
     piece_cv2 = cv2.imread(processed_piece_path, cv2.IMREAD_UNCHANGED)
 
     if algorithm_type == "SIFT":
-        solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time)
+        solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
     elif algorithm_type == "CNN":
-        # solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time) // TODO
+        # solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces) // TODO
         solved_piece_base64 = None
     else:
         return flask.jsonify({"error": "Unsupported algorithm type"}), 415
