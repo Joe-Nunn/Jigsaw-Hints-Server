@@ -24,13 +24,14 @@ RATIO_FOR_MATCH = 0.75
 MATCH_CUTOFF = 10
 DATASET_PATH = "JigsawDataset/"
 CHECKING_CORRECT_MARGIN = 0.03  # 3% of image size
-
-
 # Note that this algorithm is unlikely to randomly place the jigsaw piece on the base,
 # so the margin shouldn't need to be extremely low.
 
+# Debug overlay piece
+OVERLAY_PIECE = False
+
 class SiftMatch(Match):
-    def find_match(self, base, piece, save_image, request_time):
+    def find_match(self, base, piece, save_image, request_time, hint_accuracy, no_pieces):
         """
         Attempt to find a match of `piece` within `base`.
 
@@ -94,43 +95,63 @@ class SiftMatch(Match):
         transformed_points = cv2.perspectiveTransform(corners, matrix)
 
         if save_image:
-            # Create an alpha channel in the base if it doesn't exist
-            if piece_c != 4:
-                piece = np.dstack((piece, np.ones((piece_h, piece_w), "uint8") * 255))
-            if base_c != 4:
-                base = np.dstack((base, np.ones((base_h, base_w), "uint8") * 255))
+            final = base
 
-            # Increase piece image size to match base. Pad with black pixels.
-            piece_transformed = cv2.copyMakeBorder(piece,
-                                                   0, int(base_h - piece_h), 0, int(base_w - piece_w),
-                                                   cv2.BORDER_CONSTANT, value=[0, 0, 0, 0]
-                                                   )
+            if OVERLAY_PIECE:
+                # Create an alpha channel in the base if it doesn't exist
+                if piece_c != 4:
+                    piece = np.dstack((piece, np.ones((piece_h, piece_w), "uint8") * 255))
+                if base_c != 4:
+                    base = np.dstack((base, np.ones((base_h, base_w), "uint8") * 255))
 
-            # Apply matrix transformation to move piece to correct position on base.
-            # Handles position, rotation, scale, and perspective skews.
-            piece_transformed = cv2.warpPerspective(piece_transformed, matrix, (base_w, base_h))
+                # Increase piece image size to match base. Pad with black pixels.
+                piece_transformed = cv2.copyMakeBorder(piece,
+                    0, int(base_h - piece_h), 0, int(base_w - piece_w),
+                    cv2.BORDER_CONSTANT, value=[0, 0, 0, 0]
+                )
 
-            # Combine both the piece and the base.
-            # Convert to float for division to work properly.
-            piece_transformed = piece_transformed.astype(float)
-            base = base.astype(float)
+                # Apply matrix transformation to move piece to correct position on base.
+                # Handles position, rotation, scale, and perspective skews.
+                piece_transformed = cv2.warpPerspective(piece_transformed, matrix, (base_w, base_h))
 
-            # Use alpha from the jigsaw piece.
-            alpha = piece_transformed[:, :, 3].astype(float) / 255.0
+                # Combine both the piece and the base.
+                # Convert to float for division to work properly.
+                piece_transformed = piece_transformed.astype(float)
+                base = base.astype(float)
 
-            # Reshape alpha array to match shape of base.
-            alpha = np.array(
-                [alpha,
-                 alpha,
-                 alpha,
-                 alpha]
-            ).transpose((1, 2, 0))
+                # Use alpha from the jigsaw piece.
+                alpha = piece_transformed[:, :, 3].astype(float) / 255.0
 
-            # Cut out a transparent hole for the jigsaw piece from the base image using its alpha.
-            base = cv2.multiply(1 - alpha, base)
+                # Reshape alpha array to match shape of base.
+                alpha = np.array(
+                    [alpha,
+                    alpha,
+                    alpha,
+                    alpha]
+                ).transpose((1, 2, 0))
 
-            # Combine the jigsaw piece with the base image.
-            final = cv2.add(base, piece_transformed)
+                # Cut out a transparent hole for the jigsaw piece from the base image using its alpha.
+                base = cv2.multiply(1 - alpha, base)
+
+                # Combine the jigsaw piece with the base image.
+                final = cv2.add(base, piece_transformed)
+
+            # Draw circle around area
+            match_center_point = np.average(transformed_points, 0)
+            radius_min = np.linalg.norm(transformed_points[0] - match_center_point)
+
+            # Apply hint accuracy
+            room_to_move = np.min([base_w, base_h]) * (1.0 - hint_accuracy)
+            radius = radius_min + room_to_move
+            center = [
+                match_center_point[0,0] + np.random.uniform(-(room_to_move / 2), (room_to_move / 2), 1),
+                match_center_point[0,1] + np.random.uniform(-(room_to_move / 2), (room_to_move / 2), 1)
+            ]
+
+            thickness = np.min([base_w, base_h]) * 0.01
+            final = cv2.circle(final, (int(center[0]), int(center[1])), int(radius), (0, 0, 255), int(thickness))
+
+            # Save image
             solved_png_path = "output/" + str(request_time) + "_solved.jpg"
             cv2.imwrite(solved_png_path, final)
 
