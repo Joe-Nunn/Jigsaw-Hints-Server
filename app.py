@@ -7,6 +7,7 @@ import json as python_json
 
 import image_processor as ip
 from match.sift_match import SiftMatch
+from match.neural_net_match import NeuralNetMatch
 
 from json_encoder import NumpyArrayEncoder
 
@@ -19,6 +20,7 @@ app = flask.Flask(__name__)
 app.json_encoder = NumpyArrayEncoder
 
 sift = SiftMatch()
+cnn = NeuralNetMatch()
 
 
 @app.route("/process", methods=["POST"])
@@ -78,8 +80,7 @@ def process():
     if algorithm_type == "SIFT":
         solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
     elif algorithm_type == "CNN":
-        # solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces) // TODO
-        solved_piece_base64 = None
+        solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
     else:
         return flask.jsonify({"error": "Unsupported algorithm type"}), 415
 
