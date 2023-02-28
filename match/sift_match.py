@@ -16,7 +16,6 @@ import time
 import cv2
 import numpy as np
 import pandas as pd
-from PIL import Image
 
 from match import Match
 
@@ -151,24 +150,7 @@ class SiftMatch(Match):
             thickness = np.min([base_w, base_h]) * 0.01
             final = cv2.circle(final, (int(center[0]), int(center[1])), int(radius), (0, 0, 255), int(thickness))
 
-            # Save image
-            solved_png_path = "output/" + str(request_time) + "_solved.jpg"
-            cv2.imwrite(solved_png_path, final)
-
-            # Convert to webp
-            solved_webp = Image.open(solved_png_path)
-            solved_webp = solved_webp.convert("RGB")
-            solved_webp_path = "output/" + str(request_time) + "_solved.webp"
-            solved_webp.save(solved_webp_path, "webp")
-
-            # Delete the PNG file
-            try:
-                os.remove(solved_png_path)
-            except:
-                pass
-
-            # Encode to base64 and return
-            return self.encode_base64(solved_webp_path)
+            return self.save_solved_image(request_time, final)
 
         # Return the found points as a percent of the base's size
         # (same format as testing data)
