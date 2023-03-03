@@ -34,9 +34,9 @@ class NeuralNetMatch(Match):
 
         best_piece = (0, 0, 0)
 
-        # loop through the base in steps of 25 pixels
-        for y in range(0, height - 255, 25):
-            for x in range(0, width - 255, 25):
+        # loop through the base in steps of 75 pixels
+        for y in range(0, height - 255, 75):
+            for x in range(0, width - 255, 75):
                 section = base[y:y + 255, x:x + 255]
                 section = self._convert_to_tensor(section)
                 match_score = self.model.forward(piece, section)
