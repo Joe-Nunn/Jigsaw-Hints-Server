@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 import numpy as np
 
 from match import Match
-from neural_network import NeuralNetwork
+from match.neural_network import NeuralNetwork
 
 SECTION_SIZE = 255
 
@@ -28,7 +28,7 @@ class NeuralNetMatch(Match):
 
     @staticmethod
     def _calculate_required_padding(base):
-        height, width, _ = base.shape()
+        height, width, _ = base.shape
 
         # Required extra padding
         extra_padding_x = SECTION_SIZE - (width % SECTION_SIZE)
@@ -52,7 +52,7 @@ class NeuralNetMatch(Match):
         """
         Takes an image with padding and a picture of the same size before padding (original) and crops the padded one
         """
-        height, width, _ = image.shape()
+        height, width, _ = image.shape
 
         new_dim_x = width - padding_x
         new_dim_y = height - padding_y
@@ -71,12 +71,14 @@ class NeuralNetMatch(Match):
         # get the base height and width
         height, width, _ = base.shape
 
-        scores = np.empty([height / SECTION_SIZE, width / SECTION_SIZE], np.single)
+        scores = np.empty([int(height / SECTION_SIZE), int(width / SECTION_SIZE)], np.single)
 
         # loop through the base in steps of 75 pixels
-        for y in range(0, height - SECTION_SIZE, SECTION_SIZE):
-            for x in range(0, width - SECTION_SIZE, SECTION_SIZE):
-                section = base[y:y + SECTION_SIZE, x:x + SECTION_SIZE]
+        for y in range(0, int(height / SECTION_SIZE)):
+            new_y = y * SECTION_SIZE
+            for x in range(0, int(width / SECTION_SIZE)):
+                new_x = x * SECTION_SIZE
+                section = base[new_y:new_y + SECTION_SIZE, new_x:new_x + SECTION_SIZE]
                 section = self._convert_to_tensor(section)
                 scores[y, x] = self.model.forward(piece, section)
         return scores
@@ -102,10 +104,10 @@ class NeuralNetMatch(Match):
         score_image = cv2.cvtColor(scores, cv2.COLOR_GRAY2BGR)
 
         # Resize scores image to be same size as base
-        height, width, _ = base.shape()
+        height, width, _ = base.shape
         extra_padding_x, extra_padding_y = self._calculate_required_padding(base)
         # Resize to same size as base with padding as scores calculated on base with padding. Maintain the positioning
-        cv2.resize(score_image, (width + extra_padding_x, height + extra_padding_y))
+        score_image = cv2.resize(score_image, (width + extra_padding_x, height + extra_padding_y))
         # Crop parts that were padded as padding to get original lined up
         score_image = self._remove_padding(score_image, extra_padding_x, extra_padding_y)
 
