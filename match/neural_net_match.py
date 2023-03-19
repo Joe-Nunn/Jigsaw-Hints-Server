@@ -95,9 +95,8 @@ class NeuralNetMatch(Match):
         min_score = scores[min_score_y, min_score_x]
 
         # Normalise scores between 0 and 255
-        def normalise(score): (score - min_score / (max_score - min_score)) * 255
-
-        normalise(scores)
+        normalise = lambda score: (score - min_score / (max_score - min_score)) * 255
+        scores = normalise(scores)
 
         # Convert scores into a grayscale image
         scores = scores.astype('uint8')
@@ -117,7 +116,19 @@ class NeuralNetMatch(Match):
         # Superimpose score heat map onto the base
         return cv2.addWeighted(heatmap, 0.5, base, 0.5, 0)
 
+    def _scale_base(self, base, scale):
+        """
+        Scales base (increases / deceases its size) by a factor of scale
+        """
+        width = int(base.shape[1] * scale)
+        height = int(base.shape[0] * scale)
+        dim = (width, height)
+
+        # resize image
+        return cv2.resize(base, dim)
+
     def find_match(self, base, piece, save_image, request_time, hint_accuracy, no_pieces):
+        base = self._scale_base(base, 4)
         section_scores = self.score_sections(base, piece)
         base = self.create_heat_map(base, section_scores)
         return self.save_solved_image(request_time, base)
