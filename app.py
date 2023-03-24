@@ -79,6 +79,9 @@ def process():
 
     if algorithm_type == "SIFT":
         solved_piece_base64 = sift.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
+        if solved_piece_base64 is None:
+            print("SIFT failed, trying CNN")
+            solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
     elif algorithm_type == "CNN":
         solved_piece_base64 = cnn.find_match(base_cv2, piece_cv2, True, request_time, hint_accuracy, no_pieces)
     else:
