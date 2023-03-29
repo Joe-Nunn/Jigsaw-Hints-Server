@@ -22,6 +22,9 @@ piece = encode_base64("piece.png")
 base = encode_base64("base.jpg")
 
 req_dict = {
+    "algorithm_type": "SIFT",
+    "hint_accuracy": 100,
+    "number_of_pieces": 0,
     "piece_data": piece,
     "base_data": base
 }

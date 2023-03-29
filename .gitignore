@@ -131,3 +131,6 @@ dmypy.json
 # Flash server demo (PyCharm IDE)
 .idea/
 output/
+
+# Pytorch model - Too large for github
+*.pt

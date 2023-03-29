@@ -36,6 +36,7 @@ import sys
 import shlex
 
 import cv2
+import numpy as np
 from PIL import Image
 from rembg import remove
 
@@ -62,11 +63,6 @@ background_colour = (128, 0, 0, 255)  # RGBA
 # Input path to the image or folder containing images to process.
 # Can either point to an image, or a folder.
 input_path = ""
-
-# Where temporary images should be saved.
-# Cleaned up at the end of the process.
-temp_path = "temp.png"
-temp_mask_path = "mask.png"
 
 # Logging level. Will only output warnings if true.
 quiet = False
@@ -103,7 +99,7 @@ def main():
 
     else:
         # is a file.
-        if input_path.endswith(".png"):
+        if input_path.endswith(".png") or input_path.endswith(".jpg"):
             process(input_path)
 
 
@@ -159,17 +155,17 @@ def process(file_path):
     if not quiet:
         print("Processing file: " + str(file_name))
 
-    # Copy the file to the temp path to be worked on.
-    shutil.copyfile(file_path, temp_path)
+    # Copy the file to memory to be worked on.
+    file = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
 
     # Apply the filters in order.
-    fast_denoise()
-    remove_background()
+    # fast_denoise()
+    file, mask = remove_background(file)
     # draw_debug_rect(calc_bounding_rect())
-    crop_image(calc_bounding_rect())
-    resize()
-    center()
-    add_background_colour()
+    file = crop_image(file, calc_bounding_rect(file, mask))
+    file = resize(file)
+    file = center(file)
+    file = add_background_colour(file)
 
     # Calculate the output path.
     output_path = "unknown.png"
@@ -181,7 +177,11 @@ def process(file_path):
 
     if os.path.isfile(input_path):
         # If just a file, save in the same folder as the input.
-        idx = input_path.index(".png")
+        if ".png" in input_path:
+            idx = input_path.index(".png")
+        else:
+            idx = input_path.index(".jpg")
+        
         output_path = input_path[:idx] + append + input_path[idx:]
     else:
         # Same as above, but respects path inputs.
@@ -189,12 +189,7 @@ def process(file_path):
         basepath = file_path.replace(os.path.basename(file_path), "")
         output_path = os.path.join(basepath, basename + append + ".png")
 
-    # Copy the fully processed temp file to the output path.
-    shutil.copyfile(temp_path, output_path)
-
-    # Delete the temp files.
-    os.remove(temp_path)
-    os.remove(temp_mask_path)
+    cv2.imwrite(output_path, file)
 
     if not quiet:
         print("Done!")
@@ -232,7 +227,7 @@ def draw_debug_rect(rect_array):
     cv2.imwrite(temp_path, img)
 
 
-def add_background_colour():
+def add_background_colour(file):
     """
     Adds a simple solid background colour to the image.
     No processing is applied if the colour is transparent.
@@ -242,7 +237,7 @@ def add_background_colour():
 
     # If fully transparent, skip processing.
     if background_colour[3] == 255:
-        return
+        return file
 
     if not quiet:
         print("Adding background colour...")
@@ -250,15 +245,20 @@ def add_background_colour():
     # Create a new image with the background colour.
     colour = Image.new("RGB", (desired_size, desired_size), background_colour)
 
-    # Get the jigsaw piece image.
-    piece = Image.open(temp_path)
+     # Convert cv2 to PIL image
+    img = cv2.cvtColor(file, cv2.COLOR_BGRA2RGBA)
+    piece = Image.fromarray(img)
 
     # Combine the two, and save.
     colour.paste(piece, (0, 0), piece)
-    colour.save(temp_path)
+    
+    # Convert back
+    colour = np.asarray(colour)
+    colour = cv2.cvtColor(colour, cv2.COLOR_BGRA2RGBA)
+    return colour
 
 
-def crop_image(rect_array):
+def crop_image(file, rect_array):
     """
     Crop the image to the given rectangle in the form of an array containing 4 elements (x start, y start, width, height).
     """
@@ -272,17 +272,12 @@ def crop_image(rect_array):
     w = rect_array[2]
     h = rect_array[3]
 
-    # Read the image, preserving transparency.
-    img = cv2.imread(temp_path, cv2.IMREAD_UNCHANGED)
-
     # Crop the image using numpy array.
-    crop_img = img[y:y + h, x:x + w]
-
-    # Write to temp.
-    cv2.imwrite(temp_path, crop_img)
+    crop_img = file[y:y + h, x:x + w]
+    return crop_img
 
 
-def resize():
+def resize(file):
     """
     Resize the image, preserving aspect ratio.
     The image will never be bigger than the desired output size.
@@ -292,9 +287,8 @@ def resize():
         print("Resizing...")
 
     # Read the image and get height and width.
-    img = cv2.imread(temp_path, cv2.IMREAD_UNCHANGED)
-    width = img.shape[1]
-    height = img.shape[0]
+    width = file.shape[1]
+    height = file.shape[0]
 
     # Assuming square only
     desired_size_x = desired_size
@@ -312,18 +306,17 @@ def resize():
         desired_size_x *= (width / height)
 
     # Actually perform the resizing.
-    img_resized = cv2.resize(img, (int(desired_size_x), int(desired_size_y)))
-
-    # Save the resized image.
-    cv2.imwrite(temp_path, img_resized)
+    img_resized = cv2.resize(file, (int(desired_size_x), int(desired_size_y)))
 
     if not quiet:
         print('Resized!')
         print('Image Width is now', img_resized.shape[1])
         print('Image Height is now', img_resized.shape[0])
+    
+    return img_resized
 
 
-def center():
+def center(file):
     """
     Center the image by adding transparent borders to fit the desired output size.
     """
@@ -332,9 +325,8 @@ def center():
         print("Centering...")
 
     # Read the image and width and height.
-    img = cv2.imread(temp_path, cv2.IMREAD_UNCHANGED)
-    width = img.shape[1]
-    height = img.shape[0]
+    width = file.shape[1]
+    height = file.shape[0]
 
     # Calculate space that needs to be added horizontally and vertically.
     space_vertical = max(desired_size - height, 0)
@@ -347,16 +339,15 @@ def center():
     border_right = math.ceil(space_horizontal / 2)
 
     # Add the border.
-    img_centered = cv2.copyMakeBorder(src=img,
-                                      top=border_top, bottom=border_bottom, left=border_left, right=border_right,
-                                      borderType=cv2.BORDER_CONSTANT, value=[0, 0, 0, 0]
-                                      )
+    img_centered = cv2.copyMakeBorder(src=file,
+        top=border_top, bottom=border_bottom, left=border_left, right=border_right,
+        borderType=cv2.BORDER_CONSTANT, value=[0, 0, 0, 0]
+    )
 
-    # Save the modified image.
-    cv2.imwrite(temp_path, img_centered)
+    return img_centered
 
 
-def remove_background():
+def remove_background(file):
     """
     Remove the background from the image using the "rembg" library.
     Also saves a temporary mask.
@@ -366,8 +357,9 @@ def remove_background():
     if not quiet:
         print("Removing background...")
 
-    # Open the image using PIL.
-    input = Image.open(temp_path)
+    # Convert cv2 to PIL image
+    img = cv2.cvtColor(file, cv2.COLOR_BGRA2RGBA)
+    input = Image.fromarray(img)
 
     # Call the remove method of "rembg" twice (one mask, one not.)
     output = remove(input, only_mask=False)
@@ -391,12 +383,15 @@ def remove_background():
     if percent_visible <= background_removal_error_threshold_percent:
         warning("Total visible is below allowed threshold! (" + str(percent_visible) + ")")
 
-    # Save the outputs.
-    output.save(temp_path)
-    output_mask.save(temp_mask_path)
+    # Convert back to cv2
+    output = np.asarray(output)
+    output = cv2.cvtColor(output, cv2.COLOR_RGBA2BGRA)
+    output_mask = np.asarray(output_mask)
+    output_mask = cv2.cvtColor(output_mask, cv2.COLOR_RGBA2BGRA)
+    return (output, output_mask)
 
 
-def calc_bounding_rect():
+def calc_bounding_rect(file, mask):
     """
     Calculates the bounding rectangle of the piece and returns it in the form of an array.
     https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_features.html
@@ -406,14 +401,15 @@ def calc_bounding_rect():
         print("Calculating bounding rect...")
 
     # Load as greyscale only, use mask image as it is greyscale.
-    img = cv2.imread(temp_mask_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.cvtColor(mask, cv2.COLOR_BGRA2GRAY)
 
     # Code from https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_features.html
     ret, thresh = cv2.threshold(img, bounding_clamp_lower_value, bounding_clamp_upper_value, 0)
     contours, hierarchy = cv2.findContours(thresh, 1, 2)
 
-    # Open mask as bounding PIL image.
-    mask_image = Image.open(temp_mask_path)
+    # Open mask to PIL for bound calculation
+    mask_colour = cv2.cvtColor(mask, cv2.COLOR_BGRA2RGBA)
+    mask_image = Image.fromarray(mask_colour)
     error_area = (mask_image.width * mask_image.height) * bounding_factor_error
 
     # Find most significant contour that meets criteria
