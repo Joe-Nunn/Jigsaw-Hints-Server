@@ -128,7 +128,8 @@ class NeuralNetMatch(Match):
 
     def _scale_base(self, base, scale):
         """
-        Scales base (increases / deceases its size) by a factor of scale
+        Scales base (increases / deceases its size) by a factor of scale. The larger the scale the more accurate unless
+        too large to the point too little of the base image is being examined
         """
         width = int(base.shape[1] * scale)
         height = int(base.shape[0] * scale)
