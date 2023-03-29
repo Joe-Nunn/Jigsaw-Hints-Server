@@ -6,6 +6,9 @@ from PIL import Image
 
 
 class Match(ABC):
+    """
+    Abstract class to remove repetition shared functionality between different matching algorithms
+    """
 
     def __init__(self):
         pass

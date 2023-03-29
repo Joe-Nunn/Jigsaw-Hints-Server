@@ -1,3 +1,7 @@
+"""
+Functionality for attempting to match a jigsaw piece onto a base image using the neural network.
+"""
+
 import cv2
 import torch
 import torchvision.transforms as transforms
@@ -19,6 +23,9 @@ class NeuralNetMatch(Match):
 
     @staticmethod
     def _convert_to_tensor(image):
+        """
+        Converts image to a tensor ensuring it's the correct format (no transparency channel)
+        """
         image = image[:, :, :3]  # remove alpha channel
         transform = transforms.ToTensor()
         image = transform(image)
@@ -28,6 +35,9 @@ class NeuralNetMatch(Match):
 
     @staticmethod
     def _calculate_required_padding(base):
+        """
+        Calculates how much padding is required to make an images dimensions divisible by the section size
+        """
         height, width, _ = base.shape
 
         # Required extra padding
@@ -73,14 +83,14 @@ class NeuralNetMatch(Match):
 
         scores = np.empty([int(height / SECTION_SIZE), int(width / SECTION_SIZE)], np.single)
 
-        # loop through the base in steps of 75 pixels
-        for y in range(0, int(height / SECTION_SIZE)):
-            new_y = y * SECTION_SIZE
-            for x in range(0, int(width / SECTION_SIZE)):
-                new_x = x * SECTION_SIZE
-                section = base[new_y:new_y + SECTION_SIZE, new_x:new_x + SECTION_SIZE]
+        # loop through the base in steps of section size
+        for base_y in range(0, int(height / SECTION_SIZE)):
+            score_y = base_y * SECTION_SIZE
+            for base_x in range(0, int(width / SECTION_SIZE)):
+                score_x = base_x * SECTION_SIZE
+                section = base[score_y:score_y + SECTION_SIZE, score_x:score_x + SECTION_SIZE]
                 section = self._convert_to_tensor(section)
-                scores[y, x] = self.model.forward(piece, section)
+                scores[base_y, base_x] = self.model.forward(piece, section)
         return scores
 
     def create_heat_map(self, base, scores):
@@ -128,6 +138,9 @@ class NeuralNetMatch(Match):
         return cv2.resize(base, dim)
 
     def find_match(self, base, piece, save_image, request_time, hint_accuracy, no_pieces):
+        """
+        Returns a heat map with higher heat where the piece matches the sections of the base image
+        """
         base = self._scale_base(base, 4)
         section_scores = self.score_sections(base, piece)
         base = self.create_heat_map(base, section_scores)

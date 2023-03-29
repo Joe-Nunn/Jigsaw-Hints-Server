@@ -29,6 +29,7 @@ CHECKING_CORRECT_MARGIN = 0.03  # 3% of image size
 # Debug overlay piece
 OVERLAY_PIECE = False
 
+
 class SiftMatch(Match):
     def find_match(self, base, piece, save_image, request_time, hint_accuracy, no_pieces):
         """
@@ -57,8 +58,8 @@ class SiftMatch(Match):
         bf = cv2.BFMatcher.create(cv2.NORM_L2)
         matches = bf.knnMatch(desc_piece, desc_base, k=2)
 
-        # Loop through all matches and only keep the ones that we are sufficiently confidient are correct.
-        # This is achieve through a "ratio test" by comparing the distance between the two matched features.
+        # Loop through all matches and only keep the ones that we are sufficiently confident are correct.
+        # This is achieved through a "ratio test" by comparing the distance between the two matched features.
         # see Section 7.1. Keypoint matching: https://www.cs.ubc.ca/~lowe/papers/ijcv04.pdf
         good = []
         for (m, n) in matches:

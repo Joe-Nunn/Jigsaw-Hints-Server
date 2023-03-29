@@ -59,7 +59,6 @@ class NeuralNetwork(nn.Module):
         base_sections = self.sigmoid(base_sections)
 
         diff = torch.abs(pieces - base_sections)
-        #combine = torch.concat((pieces, base_sections), 1)
 
         fc_out_result = self.fcOut1(diff)
         fc_out_result = self.fcOut2(fc_out_result)

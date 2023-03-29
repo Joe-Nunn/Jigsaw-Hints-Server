@@ -27,7 +27,8 @@ cnn = NeuralNetMatch()
 def process():
     """
     Processes a piece image using the image processor library.
-    Then it feeds the AI model with base and piece images.
+    Then it feeds the chosen piece finding algorithm with base and piece images.
+    Resorts to CNN if SIFT fails.
     Returns the location of the piece within the base to the caller.
     """
 
